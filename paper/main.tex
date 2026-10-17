@@ -4,7 +4,7 @@
 \usepackage{mathpazo}
 \usepackage[margin=2.6cm]{geometry}
 \usepackage{microtype}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{xcolor}
@@ -22,7 +22,7 @@
 \newcommand{\PnL}{\text{P\&L}}
 
 \title{\textbf{Delta Hedging in Discrete Time:\\[2pt]
-\large Rebalancing Error, Transaction Costs and Volatility Misspecification}}
+\large Rebalancing Error, Volatility Misspecification and Transaction Costs}}
 \author{Gabriel Baraban\\[2pt]
 \small École Polytechnique, Bachelor of Science (Mathematics \& Economics)}
 \date{October 2026}
@@ -32,62 +32,83 @@
 
 \begin{abstract}
 \noindent
-In the Black--Scholes model a European call can be replicated exactly by trading continuously in the underlying stock. This note studies, by Monte Carlo simulation, what remains of this result under three realistic departures: the hedge is rebalanced at finitely many dates, every trade incurs a proportional cost, and the volatility used to hedge differs from the one realised by the market. For each case I derive the leading-order behaviour of the hedger's profit and loss with an elementary Itô--Taylor argument and compare it with simulations. The rebalancing error decays like $N^{-1/2}$ in the number $N$ of rebalancing dates; with costs, the expected loss grows like $N^{1/2}$, which creates an optimal rebalancing frequency, and Leland's adjusted volatility removes almost all of the cost bias; with a misspecified volatility, the profit is driven by the gamma-weighted gap between implied and realised variance, which I verify path by path. All code is available at \url{\repourl}.
+In the Black--Scholes model a European call can be replicated by trading in the underlying stock, provided the hedge is adjusted continuously, without costs, and with the right volatility. This note studies, by Monte Carlo simulation, what happens when each of these conditions fails: the hedge is rebalanced at finitely many dates, the volatility used to hedge differs from the one the stock actually exhibits, and every trade incurs a proportional cost. A single second-order Taylor expansion of the option price over one rebalancing period explains all three effects. The rebalancing error decays like $N^{-1/2}$ in the number $N$ of rebalancing dates; a misspecified volatility produces a profit equal to a gamma-weighted gap between the two variances, which I verify path by path; and transaction costs create an expected loss growing like $N^{1/2}$, which Leland's adjusted volatility, interpreted as a deliberate volatility misspecification, offsets almost entirely. All code is available at \url{\repourl}.
 \end{abstract}
 
 \section{Introduction}
 
-The Black--Scholes price of an option is the initial cost of a self-financing portfolio that replicates its payoff \cite{BlackScholes1973}. Replication requires trading continuously, in a frictionless market, with knowledge of the true volatility. None of these holds in practice, so a trader who sells an option at its Black--Scholes price and hedges it is exposed to a residual profit and loss (\PnL).
+The Black--Scholes price of an option is the initial cost of a self-financing portfolio that replicates its payoff \cite{BlackScholes1973}. Replication requires trading continuously, in a frictionless market, with knowledge of the true volatility. None of these holds in practice, so a trader who sells an option and hedges it is exposed to a residual profit and loss (\PnL).
 
-This note quantifies that residual in a controlled setting. The stock follows a geometric Brownian motion; a trader sells a three-month at-the-money call and delta-hedges it. Three questions are studied, one per section:
+This note quantifies that residual in a controlled setting: the stock follows the Black--Scholes model, and a trader sells a three-month at-the-money call and delta-hedges it. Three questions are studied:
 \begin{enumerate}
   \item How large is the hedging error when the hedge is rebalanced only $N$ times? (Section~\ref{sec:discrete})
+  \item What happens when the trader hedges with a volatility different from the one the stock exhibits? (Section~\ref{sec:wrongvol})
   \item How do proportional transaction costs change the picture, and can they be priced in? (Section~\ref{sec:costs})
-  \item What happens when the trader hedges with a volatility different from the realised one? (Section~\ref{sec:wrongvol})
 \end{enumerate}
-The answers are classical \cite{Leland1985,DermanKamal1999,ElKarouiEtAl1998,AhmadWilmott2005,BouchardChassagneux2016}; the purpose here is to re-derive the mechanisms in a unified way and to check each prediction numerically.
+The answers are classical \cite{Leland1985,DermanKamal1999,ElKarouiEtAl1998,AhmadWilmott2005,BouchardChassagneux2016}. The aim is to show that one elementary computation, a second-order Taylor expansion over a single rebalancing period, explains all three, and to check each prediction numerically.
+
+\paragraph{Level of rigour.} The derivations are heuristic: they use Taylor expansions, keep only leading-order terms, and rely on elementary properties of Gaussian random variables (collected in Appendix~\ref{app:gauss}). Rigorous versions of these results are formulated in continuous time and require stochastic calculus; references are given where relevant. The simulations, by contrast, involve no approximation other than the discreteness of the hedge.
 
 \section{Setting}\label{sec:setting}
 
-\paragraph{Model.} Under the real-world probability the stock satisfies
-\begin{equation}\label{eq:gbm}
-  \dd S_t = \mu S_t\,\dd t + \sigma S_t\,\dd W_t ,
+\paragraph{Model.} Time runs from $0$ to the maturity $T$ and is divided into $N$ periods of length $\Delta t = T/N$, with dates $t_i = i\,\Delta t$. Over each period the stock price is multiplied by an independent lognormal factor:
+\begin{equation}\label{eq:model}
+  S_{t_{i+1}} = S_{t_i}\exp\!\Big(\big(\mu - \tfrac12\sigma^2\big)\Delta t + \sigma\sqrt{\Delta t}\,Z_i\Big),
+  \qquad Z_0, Z_1, \dots \ \text{i.i.d.\ } \mathcal N(0,1).
 \end{equation}
-and cash earns the constant rate $r$. The Black--Scholes price of a call with strike $K$ and maturity $T$ is
+Since $\E[e^{\sigma\sqrt{\Delta t}Z}] = e^{\sigma^2\Delta t/2}$, the expected return over a period is $\E[S_{t_{i+1}}/S_{t_i}] = e^{\mu\Delta t}$: $\mu$ is the drift. The log-return has variance $\sigma^2\Delta t$: $\sigma$ is the volatility. This is exactly the Black--Scholes model (geometric Brownian motion) observed at the dates $t_i$; in particular, the simulations below are exact. Cash earns the constant rate $r$.
+
+\paragraph{Black--Scholes formulas.} The Black--Scholes price of a call with strike $K$ is
 \[
   C(t,S) = S\,\Phi(d_1) - K e^{-r\tau}\Phi(d_2),\qquad
   d_{1,2} = \frac{\ln(S/K) + (r\pm\tfrac12\sigma^2)\tau}{\sigma\sqrt\tau},\qquad \tau = T-t,
 \]
-with delta $\Delta = \partial_S C = \Phi(d_1)$ and gamma $\Gamma = \partial_{SS} C = \varphi(d_1)/(S\sigma\sqrt\tau)$. The price solves the Black--Scholes equation
+where $\Phi$ and $\varphi$ are the standard normal distribution function and density. Its sensitivities are the delta $\Delta = \partial_S C = \Phi(d_1)$, the gamma $\Gamma = \partial_{SS} C = \varphi(d_1)/(S\sigma\sqrt\tau) > 0$ and the vega $\mathcal V = \partial_\sigma C = S\varphi(d_1)\sqrt\tau$. A direct computation (Appendix~\ref{app:pde}) shows that $C$ satisfies the Black--Scholes equation
 \begin{equation}\label{eq:bspde}
   \partial_t C + \tfrac12\sigma^2 S^2\,\Gamma + rS\,\Delta - rC = 0 .
 \end{equation}
 Throughout, $S_0 = K = 100$, $T = 0.25$, $r = 2\%$, $\mu = 8\%$ and $\sigma = 20\%$, so that $C(0,S_0) = \CallPrice$.
 
-\paragraph{Hedging strategy.} The trader sells the call at time $0$ for $C(0,S_0)$, buys $\Delta_0$ shares and keeps the rest in cash. At the dates $t_i = iT/N$, $i = 1,\dots,N-1$, the position is adjusted to $\Delta_{t_i}$ shares, the trade being financed from cash; no money is added or withdrawn. At maturity the trader pays $(S_T-K)^+$. The terminal \PnL\ is
+\paragraph{Hedging strategy.} The trader sells the call at time $0$, buys $\Delta_0$ shares and keeps the rest in cash. At each date $t_i$, $i = 1,\dots,N-1$, the position is adjusted to $\Delta_{t_i}$ shares, the trade being financed from cash; no money is added or withdrawn, so the strategy is self-financing. At maturity the trader pays $(S_T-K)^+$. The terminal \PnL\ is
 \[
   \PnL = B_T + \Delta_{t_{N-1}} S_T - (S_T - K)^+ ,
 \]
-where $B_T$ is the cash account. Under continuous rebalancing in the model \eqref{eq:gbm}, $\PnL = 0$ almost surely.
+where $B_T$ is the cash account. The Black--Scholes replication result says that $\PnL \to 0$ as $N\to\infty$; Section~\ref{sec:discrete} quantifies how fast.
 
-\paragraph{Simulation.} Paths are simulated exactly on the grid,
-$S_{t_{i+1}} = S_{t_i}\exp\big((\mu - \tfrac12\sigma^2)\Delta t + \sigma\sqrt{\Delta t}\,Z_i\big)$ with $Z_i$ i.i.d.\ standard normal and $\Delta t = T/N$, so the only approximation is the discreteness of the hedge. Results use $\Mmain$ paths for the main figures and $\Msweep$ paths per point in the parameter sweeps.
+\paragraph{Simulation.} Paths are generated with \eqref{eq:model}. Results use $\Mmain$ paths for the main figures and $\Msweep$ paths per point in the parameter sweeps.
 
 \section{Discrete rebalancing}\label{sec:discrete}
 
-\paragraph{Local error.} Consider one period $[t_i, t_{i+1}]$ and write $\delta S = S_{t_{i+1}} - S_{t_i}$. To second order, the option moves by $\partial_t C\,\Delta t + \Delta\,\delta S + \tfrac12\Gamma\,\delta S^2$, the shares by $\Delta\,\delta S$, and the cash, which equals $C - \Delta S$ when the portfolio is balanced, earns $r(C - \Delta S)\Delta t$. Using \eqref{eq:bspde} to eliminate $\partial_t C$, the change in the hedged position of the option seller is
-\begin{equation}\label{eq:localerror}
-  \varepsilon_i \approx \tfrac12\,\Gamma_{t_i} S_{t_i}^2\left(\sigma^2\Delta t - \Big(\frac{\delta S}{S_{t_i}}\Big)^2\right)
-  \approx \tfrac12\,\Gamma_{t_i} S_{t_i}^2\,\sigma^2\Delta t\,\big(1 - Z_i^2\big).
-\end{equation}
-The delta terms cancel exactly: this is why the drift $\mu$ plays no role. What is left is a convexity term, of zero mean, because $\E[Z_i^2] = 1$, and of variance $\tfrac12(\Gamma S^2\sigma^2\Delta t)^2$, because $\operatorname{Var}(Z^2) = 2$.
-
-\paragraph{Global error.} The local errors are uncorrelated, so their variances add:
+\paragraph{Local error.} Consider one period $[t_i, t_{i+1}]$ and write $\delta S = S_{t_{i+1}} - S_{t_i}$. The trader is short one option, long $\Delta$ shares, and holds $C - \Delta S$ in cash. A second-order Taylor expansion of $C$ gives, to leading order,
 \[
-  \operatorname{Var}(\PnL) \approx \tfrac12\sum_{i} \E\big[(\Gamma_{t_i}S_{t_i}^2\sigma^2)^2\big]\Delta t^2
+  \delta C \approx \partial_t C\,\Delta t + \Delta\,\delta S + \tfrac12\Gamma\,\delta S^2 ,
+\]
+while the shares gain $\Delta\,\delta S$ and the cash earns $r(C - \Delta S)\Delta t$. The change in the value of the position is therefore
+\[
+  -\delta C + \Delta\,\delta S + r(C-\Delta S)\Delta t
+  \approx -\partial_t C\,\Delta t - \tfrac12\Gamma\,\delta S^2 + r(C - \Delta S)\Delta t .
+\]
+Replacing $\partial_t C$ by its value from \eqref{eq:bspde}, all terms in $C$ and $\Delta$ cancel and only a convexity term remains:
+\begin{equation}\label{eq:localerror}
+  \varepsilon_i \approx \tfrac12\,\Gamma_{t_i} S_{t_i}^2\left(\sigma^2\Delta t - \Big(\frac{\delta S}{S_{t_i}}\Big)^2\right).
+\end{equation}
+By \eqref{eq:model}, $\delta S/S_{t_i} = e^{x}-1$ with $x = (\mu-\tfrac12\sigma^2)\Delta t + \sigma\sqrt{\Delta t}\,Z_i$, so $(\delta S/S_{t_i})^2 = \sigma^2\Delta t\,Z_i^2$ up to terms of order $\Delta t^{3/2}$. Hence
+\begin{equation}\label{eq:localerror2}
+  \varepsilon_i \approx a_i\,\big(1 - Z_i^2\big),\qquad a_i = \tfrac12\,\Gamma_{t_i} S_{t_i}^2\,\sigma^2\Delta t .
+\end{equation}
+Two remarks. First, the terms in $\Delta\,\delta S$ cancelled exactly, so the drift $\mu$, which only enters through $\delta S$, plays no role at this order. Second, $a_i$ depends only on $Z_0,\dots,Z_{i-1}$, while $Z_i$ is independent of them. Since $\E[Z_i^2] = 1$, each local error has mean zero.
+
+\paragraph{Global error.} The local errors are uncorrelated. Indeed, for $i<j$, the product $\varepsilon_i a_j$ depends only on $Z_0,\dots,Z_{j-1}$ and is therefore independent of $Z_j$, so
+\[
+  \E[\varepsilon_i\varepsilon_j] = \E[\varepsilon_i a_j]\;\E[1-Z_j^2] = 0 .
+\]
+By the same independence and $\operatorname{Var}(Z^2) = 2$ (Appendix~\ref{app:gauss}), $\E[\varepsilon_i^2] = 2\,\E[a_i^2]$. The variance of the total error is then the sum of the variances, which is a Riemann sum:
+\[
+  \operatorname{Var}(\PnL) \approx 2\sum_{i} \E[a_i^2]
+  = \frac{\Delta t}{2}\sum_i \E\big[(\Gamma_{t_i}S_{t_i}^2\sigma^2)^2\big]\Delta t
   \approx \frac{T}{2N}\int_0^T \E\big[(\Gamma_t S_t^2\sigma^2)^2\big]\,\dd t .
 \]
-The standard deviation of the \PnL\ therefore decays like $N^{-1/2}$. For an at-the-money option, Derman and Kamal \cite{DermanKamal1999} obtain the explicit approximation
+The standard deviation of the \PnL\ therefore decays like $N^{-1/2}$. Evaluating the integral for an at-the-money option, Derman and Kamal \cite{DermanKamal1999} obtain the explicit approximation
 \begin{equation}\label{eq:dk}
   \operatorname{Std}(\PnL) \approx \sqrt{\frac{\pi}{4}}\;\frac{\sigma\,\mathcal V}{\sqrt N},\qquad \mathcal V = \partial_\sigma C(0,S_0).
 \end{equation}
@@ -108,70 +129,43 @@ The standard deviation of the \PnL\ therefore decays like $N^{-1/2}$. For an at-
   \label{fig:conv}
 \end{figure}
 
-\paragraph{Role of the drift.} The cancellation in \eqref{eq:localerror} only holds to leading order. Hedging under drifts of $-20\%$ and $+40\%$, the mean \PnL\ moves by at most $\DriftBiasDaily$ with daily rebalancing and by at most $\DriftBiasFine$ with $N = 1000$: the drift affects the hedge only through discretisation effects, which vanish as $N\to\infty$.
-
-\section{Transaction costs}\label{sec:costs}
-
-\paragraph{Cost model.} Each trade of $n$ shares at price $S$ now costs $\tfrac{k}{2}|n|S$, where $k$ is the round-trip proportional cost; I take $k = \kpct\%$. All rebalancing trades, including the initial purchase of $\Delta_0$ shares, are charged.
-
-\paragraph{Scaling of the cost.} Over one period the hedge ratio changes by $\delta\Delta \approx \Gamma\,\delta S \approx \Gamma S\sigma\sqrt{\Delta t}\,Z$. Since $\E|Z| = \sqrt{2/\pi}$, the expected cost of one rebalance is
-\begin{equation}\label{eq:stepcost}
-  \E[\text{cost}_i] \approx \frac{k}{2}\sqrt{\frac{2}{\pi}}\;\sigma\,\Gamma_{t_i} S_{t_i}^2\sqrt{\Delta t},
-\end{equation}
-and the total expected cost, a sum of $N$ such terms, grows like $N\sqrt{\Delta t} \propto \sqrt N$. Frequent rebalancing reduces the hedging error of Section~\ref{sec:discrete} but increases the bill: costs grow like $\sqrt N$ while the error shrinks like $1/\sqrt N$.
-
-\paragraph{Results.} Figure~\ref{fig:costs} shows the trade-off. The expected loss increases steadily with $N$ and reaches $\CostLossMaxN$, half the option's value, at $N = \MaxNtc$. The standard deviation is no longer monotone: it falls to $\StdMinTc$ at $N = \StdMinTcN$ and then rises again, because the random amount of costs paid becomes itself a source of risk. The root-mean-square \PnL, which penalises both bias and risk, is minimised at $N = \BestN$, roughly daily rebalancing. Exact replication is no longer possible, and selling at the Black--Scholes price is a losing strategy on average.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.82\textwidth]{fig3_costs.pdf}
-  \caption{Hedging with transaction costs ($k = \kpct\%$ round trip): expected cost, risk, and root-mean-square \PnL\ against the number of rebalancing dates.}
-  \label{fig:costs}
-\end{figure}
-
-\paragraph{Leland's correction.} Equation \eqref{eq:stepcost} has the same form as the convexity term in \eqref{eq:localerror}: both are proportional to $\Gamma S^2$. The cost can therefore be absorbed into an enlarged variance. Requiring the extra convexity premium $\tfrac12\Gamma S^2(\hat\sigma^2 - \sigma^2)\Delta t$ to pay for the expected cost \eqref{eq:stepcost} gives Leland's volatility \cite{Leland1985}
-\begin{equation}\label{eq:leland}
-  \hat\sigma^2 = \sigma^2\left(1 + \sqrt{\frac{2}{\pi}}\;\frac{k}{\sigma\sqrt{\Delta t}}\right).
-\end{equation}
-The trader sells the option at the Black--Scholes price computed with $\hat\sigma$ and hedges with the corresponding delta. For daily rebalancing, $\hat\sigma = \LelandSigDaily\%$ and the option is sold for $\LelandPriceDaily$ instead of $\CallPrice$.
-
-Figure~\ref{fig:leland} compares the two strategies. With Leland's volatility the mean \PnL\ stays between $\LelandMeanMin$ and $\LelandMeanMax$ for every $N$. This residual is the cost of buying the initial hedge, $\tfrac{k}{2}\Delta_0 S_0 = \SetupCost$, a one-off trade that \eqref{eq:leland}, built from rebalancing costs, does not price. The risk also keeps decreasing with $N$, to $\LelandStdMaxN$ at $N = \MaxNtc$ against $\BSStdMaxN$ for the Black--Scholes hedge. The approximation behind \eqref{eq:leland} requires $k/(\sigma\sqrt{\Delta t})$ to remain moderate; as $\Delta t\to 0$ with $k$ fixed, $\hat\sigma$ explodes, and it is known that perfect hedging under proportional costs is impossible in that limit.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.95\textwidth]{fig4_leland.pdf}
-  \caption{Mean (left) and standard deviation (right) of the \PnL\ under transaction costs, when pricing and hedging with the true volatility $\sigma$ or with Leland's volatility $\hat\sigma$.}
-  \label{fig:leland}
-\end{figure}
+\paragraph{Role of the drift.} The cancellation of the drift only holds to leading order. Hedging under drifts of $-20\%$ and $+40\%$, the mean \PnL\ moves by at most $\DriftBiasDaily$ with daily rebalancing and by at most $\DriftBiasFine$ with $N = 1000$: the drift affects the hedge only through higher-order terms, which vanish as $N\to\infty$.
 
 \section{Hedging with the wrong volatility}\label{sec:wrongvol}
 
-In practice the volatility is not observed. Options trade at an \emph{implied} volatility $\Sigma$, while the stock realises some volatility $\sigma$ that is only known after the fact. Here the stock realises $\sigma = \SigReal\%$ while the option is sold at $\Sigma = \SigImp\%$. Costs are set to zero.
+In practice the volatility is not observed. Options trade at an \emph{implied} volatility $\Sigma$, while the stock moves with some volatility $\sigma$ that is only known after the fact (the \emph{realised} volatility). Here the stock follows \eqref{eq:model} with $\sigma = \SigReal\%$, while the option is sold at $\Sigma = \SigImp\%$. Costs are set to zero.
 
-\paragraph{Hedging at the implied volatility.} Let $C^\Sigma$, $\Delta^\Sigma$, $\Gamma^\Sigma$ denote the Black--Scholes quantities computed with $\Sigma$. Repeating the computation of Section~\ref{sec:discrete} in continuous time, but using the Black--Scholes equation \eqref{eq:bspde} at volatility $\Sigma$ while $S$ has quadratic variation $\sigma^2S^2\,\dd t$, Itô's formula gives for the seller's hedged position $\Pi$
+\paragraph{Hedging at the implied volatility.} Let $C^\Sigma$, $\Delta^\Sigma$, $\Gamma^\Sigma$ denote the Black--Scholes quantities computed with $\Sigma$, and suppose the trader sells at $C^\Sigma$ and hedges with $\Delta^\Sigma$. The computation of Section~\ref{sec:discrete} goes through unchanged, except that $C^\Sigma$ satisfies \eqref{eq:bspde} with $\Sigma$ in place of $\sigma$. The local error \eqref{eq:localerror} becomes
 \[
-  \dd\Pi_t - r\Pi_t\,\dd t = \tfrac12\,\Gamma^\Sigma_t S_t^2\left(\Sigma^2 - \sigma^2\right)\dd t ,
+  \varepsilon_i \approx \tfrac12\,\Gamma^\Sigma_{t_i} S_{t_i}^2\left(\Sigma^2\Delta t - \Big(\frac{\delta S}{S_{t_i}}\Big)^2\right),
 \]
-so that
+and, using again $(\delta S/S_{t_i})^2 \approx \sigma^2\Delta t\,Z_i^2$, it splits into two parts:
+\begin{equation}\label{eq:split}
+  \varepsilon_i \approx
+  \underbrace{\tfrac12\,\Gamma^\Sigma_{t_i} S_{t_i}^2\left(\Sigma^2 - \sigma^2\right)\Delta t}_{\text{systematic gain}}
+  \;+\;
+  \underbrace{\tfrac12\,\Gamma^\Sigma_{t_i} S_{t_i}^2\,\sigma^2\Delta t\,\big(1 - Z_i^2\big)}_{\text{rebalancing noise}} .
+\end{equation}
+The second part has exactly the structure of \eqref{eq:localerror2}: by the argument of Section~\ref{sec:discrete}, its total has standard deviation of order $N^{-1/2}$ and vanishes as $N\to\infty$. The first part is a gain realised at time $t_i$; it stays in the cash account until maturity, where it has grown by the factor $e^{r(T-t_i)}$. Summing over $i$ gives a Riemann sum, and in the limit
 \begin{equation}\label{eq:gammapnl}
   \PnL = \frac{\Sigma^2 - \sigma^2}{2}\int_0^T e^{r(T-t)}\,\Gamma^\Sigma_t S_t^2\,\dd t .
 \end{equation}
-This is the classical robustness formula of El Karoui, Jeanblanc-Picqué and Shreve \cite{ElKarouiEtAl1998}. Since $\Gamma > 0$ for a call, the seller makes money on \emph{every} path when the implied volatility exceeds the realised one, but the amount depends on the path: it is large when the stock stays close to the strike near maturity, where gamma is concentrated.
+A rigorous continuous-time version of this formula is due to El Karoui, Jeanblanc-Picqué and Shreve \cite{ElKarouiEtAl1998}. Since $\Gamma > 0$, the seller makes money on \emph{every} path when the implied volatility exceeds the realised one. The amount, however, depends on the path: it is large when the stock stays close to the strike near maturity, where gamma is concentrated.
 
-\paragraph{Hedging at the realised volatility.} Alternatively, the trader sells at $C^\Sigma$ but hedges with $\Delta^\sigma$. The hedge then replicates exactly a call priced at $\sigma$, and the trader keeps the price difference:
+\paragraph{Hedging at the realised volatility.} Alternatively, the trader sells at $C^\Sigma$ but hedges with $\Delta^\sigma$. By Section~\ref{sec:discrete}, this hedge replicates a call priced at $C^\sigma$ as $N\to\infty$, so the trader keeps the price difference, compounded to maturity:
 \begin{equation}\label{eq:lockedin}
-  \PnL = e^{rT}\big(C^\Sigma(0,S_0) - C^\sigma(0,S_0)\big) = \PriceGap .
+  \PnL \to e^{rT}\big(C^\Sigma(0,S_0) - C^\sigma(0,S_0)\big) = \PriceGap .
 \end{equation}
 The profit is deterministic, but the strategy requires knowing $\sigma$ in advance.
 
-\paragraph{Results.} The left panel of Figure~\ref{fig:wrongvol} plots, path by path, the simulated \PnL\ of the implied-volatility hedge against the prediction \eqref{eq:gammapnl}, evaluated on the same path. With $N = \Nfine$ the correlation is $\CorrFine$, and the residual, which is the discrete-rebalancing error of Section~\ref{sec:discrete}, has standard deviation $\ResidStdFine$. The \PnL\ is positive on all $\Mmain$ paths, ranging from $\ImpMin$ to $\ImpMax$.
+\paragraph{Results.} The left panel of Figure~\ref{fig:wrongvol} plots, path by path, the simulated \PnL\ of the implied-volatility hedge against the prediction \eqref{eq:gammapnl}, evaluated on the same path. With $N = \Nfine$ the correlation is $\CorrFine$, and the residual, which is the rebalancing noise in \eqref{eq:split}, has standard deviation $\ResidStdFine$. The \PnL\ is positive on all $\Mmain$ paths, ranging from $\ImpMin$ to $\ImpMax$.
 
-The right panel compares the two strategies. Both earn about the price gap on average ($\ImpMean$ and $\RealMean$, against $\PriceGap$ from \eqref{eq:lockedin}), but their risks differ: $\ImpStd$ for the implied hedge against $\RealStd$ for the realised one. Table~\ref{tab:wrongvol} shows that the second number tends to zero as $N$ grows, while the first levels off. Its randomness is not a discretisation artefact; it is intrinsic to \eqref{eq:gammapnl}.
+The right panel compares the two strategies. Both earn about the price gap on average ($\ImpMean$ and $\RealMean$, against $\PriceGap$ from \eqref{eq:lockedin}), but their risks differ: $\ImpStd$ for the implied hedge against $\RealStd$ for the realised one. Table~\ref{tab:wrongvol} shows that the second number tends to zero as $N$ grows, while the first levels off: its randomness is not a discretisation effect but is intrinsic to \eqref{eq:gammapnl}.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.95\textwidth]{fig5_wrong_vol.pdf}
-  \caption{Option sold at implied volatility $\Sigma = \SigImp\%$, stock realising $\sigma = \SigReal\%$. Left: simulated \PnL\ of the implied-volatility hedge against formula \eqref{eq:gammapnl}, on 4{,}000 paths. Right: \PnL\ of the implied-volatility and realised-volatility hedges; the dotted line is the locked-in profit \eqref{eq:lockedin}.}
+  \caption{Option sold at implied volatility $\Sigma = \SigImp\%$, stock with realised volatility $\sigma = \SigReal\%$. Left: simulated \PnL\ of the implied-volatility hedge against formula \eqref{eq:gammapnl}, on 4{,}000 paths. Right: \PnL\ of the implied-volatility and realised-volatility hedges; the dotted line is the locked-in profit \eqref{eq:lockedin}.}
   \label{fig:wrongvol}
 \end{figure}
 
@@ -190,13 +184,81 @@ The right panel compares the two strategies. Both earn about the price gap on av
   \label{tab:wrongvol}
 \end{table}
 
+\section{Transaction costs}\label{sec:costs}
+
+\paragraph{Cost model.} We return to the setting of Section~\ref{sec:discrete}, where the true volatility $\sigma$ is known, and add trading costs: each trade of $n$ shares at price $S$ costs $\tfrac{k}{2}|n|S$, where $k$ is the round-trip proportional cost. I take $k = \kpct\%$. All trades, including the initial purchase of $\Delta_0$ shares, are charged.
+
+\paragraph{Scaling of the cost.} Over one period the hedge ratio changes, to leading order, by $\delta\Delta \approx \Gamma\,\delta S \approx \Gamma S\sigma\sqrt{\Delta t}\,Z$. Since $\E|Z| = \sqrt{2/\pi}$ (Appendix~\ref{app:gauss}), the expected cost of one rebalance is
+\begin{equation}\label{eq:stepcost}
+  \E[\text{cost}_i] \approx \frac{k}{2}\sqrt{\frac{2}{\pi}}\;\sigma\,\Gamma_{t_i} S_{t_i}^2\sqrt{\Delta t}.
+\end{equation}
+The total expected cost, a sum of $N$ such terms, grows like $N\sqrt{\Delta t} = \sqrt{NT}$. Rebalancing more often reduces the error of Section~\ref{sec:discrete}, which shrinks like $1/\sqrt N$, but the bill grows like $\sqrt N$.
+
+\paragraph{Results.} Figure~\ref{fig:costs} shows the trade-off. The expected loss increases steadily with $N$ and reaches $\CostLossMaxN$, half the option's value, at $N = \MaxNtc$. The standard deviation is no longer monotone: it falls to $\StdMinTc$ at $N = \StdMinTcN$ and then rises again, because the random amount of costs paid becomes itself a source of risk. The root-mean-square \PnL, which penalises both bias and risk, is minimised at $N = \BestN$, roughly daily rebalancing. Exact replication is no longer possible, and selling at the Black--Scholes price is a losing strategy on average.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.82\textwidth]{fig3_costs.pdf}
+  \caption{Hedging with transaction costs ($k = \kpct\%$ round trip): expected cost, risk, and root-mean-square \PnL\ against the number of rebalancing dates.}
+  \label{fig:costs}
+\end{figure}
+
+\paragraph{Leland's correction.} Section~\ref{sec:wrongvol} suggests a remedy. By \eqref{eq:split}, a trader who prices and hedges with a volatility $\hat\sigma$ larger than the true $\sigma$ earns, at each step, the systematic gain $\tfrac12\Gamma S^2(\hat\sigma^2 - \sigma^2)\Delta t$. Like the expected cost \eqref{eq:stepcost}, this gain is proportional to $\Gamma S^2$. Choosing $\hat\sigma$ so that the two are equal at every step,
+\[
+  \tfrac12\,\Gamma S^2\big(\hat\sigma^2 - \sigma^2\big)\Delta t = \frac{k}{2}\sqrt{\frac{2}{\pi}}\;\sigma\,\Gamma S^2\sqrt{\Delta t},
+\]
+gives Leland's volatility \cite{Leland1985}:
+\begin{equation}\label{eq:leland}
+  \hat\sigma^2 = \sigma^2\left(1 + \sqrt{\frac{2}{\pi}}\;\frac{k}{\sigma\sqrt{\Delta t}}\right).
+\end{equation}
+Leland's correction is thus a deliberate volatility misspecification: the trader sells the option at the Black--Scholes price computed with $\hat\sigma$, hedges with the corresponding delta, and the extra premium pays for the costs. For daily rebalancing, $\hat\sigma = \LelandSigDaily\%$ and the option is sold for $\LelandPriceDaily$ instead of $\CallPrice$.
+
+Figure~\ref{fig:leland} compares the two strategies. With Leland's volatility the mean \PnL\ stays between $\LelandMeanMin$ and $\LelandMeanMax$ for every $N$. This residual is the cost of buying the initial hedge, $\tfrac{k}{2}\Delta_0 S_0 = \SetupCost$, a one-off trade that \eqref{eq:leland}, built from rebalancing costs, does not price. The risk also keeps decreasing with $N$, to $\LelandStdMaxN$ at $N = \MaxNtc$ against $\BSStdMaxN$ for the Black--Scholes hedge.
+
+The derivation of \eqref{eq:leland} treats $k/(\sigma\sqrt{\Delta t})$ as a moderate correction. As $\Delta t\to 0$ with $k$ fixed, $\hat\sigma$ grows without bound, and the approximation breaks down: Soner, Shreve and Cvitanić \cite{SonerEtAl1995} showed that in continuous time with proportional costs, the cheapest way to hedge a call with certainty is to buy one share.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.95\textwidth]{fig4_leland.pdf}
+  \caption{Mean (left) and standard deviation (right) of the \PnL\ under transaction costs, when pricing and hedging with the true volatility $\sigma$ or with Leland's volatility $\hat\sigma$.}
+  \label{fig:leland}
+\end{figure}
+
 \section{Conclusion}
 
-Each departure from the Black--Scholes assumptions leaves a residual whose leading-order behaviour follows from the same second-order expansion. Discrete rebalancing creates an error of order $N^{-1/2}$; proportional costs create a bias of order $N^{1/2}$, hence an optimal rebalancing frequency, and Leland's volatility prices this bias in almost entirely; a misspecified volatility creates a profit driven by the gamma-weighted gap between implied and realised variance. In every case the simulations agree with the leading-order formulas.
+A single second-order Taylor expansion over one rebalancing period, equation \eqref{eq:split}, accounts for all three effects studied here. Its random part, of mean zero, gives a rebalancing error of order $N^{-1/2}$. Its systematic part gives the profit of hedging with a volatility different from the realised one, which is the gamma-weighted gap \eqref{eq:gammapnl}. Transaction costs add a loss of order $N^{1/2}$, which Leland's correction offsets by using that systematic part on purpose. In every case the simulations agree with the leading-order predictions.
 
-Two directions seem natural to pursue. First, Leland's correction is an approximation: with transaction costs, the exact superhedging price solves a \emph{nonlinear} pricing equation, which can be written as a backward stochastic differential equation (BSDE) \cite{BouchardChassagneux2016}. Solving such equations numerically, and comparing the result with Leland's formula, would make the analysis of Section~\ref{sec:costs} exact rather than asymptotic. Second, the hedging dates were fixed in advance; rebalancing only when the delta leaves a band around its target is a simple way to trade fewer shares for the same risk, and comparing it with calendar hedging would refine the trade-off of Figure~\ref{fig:costs}.
+Two directions seem natural to pursue. First, the arguments here are heuristic and limited to leading order. Making them rigorous, and going beyond Leland's approximation, requires stochastic calculus: with transaction costs, exact pricing leads to nonlinear equations that can be formulated as backward stochastic differential equations (BSDEs) \cite{BouchardChassagneux2016}. Learning these tools, and solving such equations numerically to compare with Leland's formula, is the natural continuation of this work. Second, the hedging dates were fixed in advance; rebalancing only when the delta leaves a band around its target is a simple way to trade fewer shares for the same risk, and comparing it with calendar hedging would refine the trade-off of Figure~\ref{fig:costs}.
 
 \paragraph{Reproducibility.} Every figure and every number in this note is produced by a single script, \texttt{experiments/run\_experiments.py}, which writes the numbers into the \LaTeX\ source. The code, with unit tests, is available at \url{\repourl}.
+
+\appendix
+
+\section{Gaussian moments}\label{app:gauss}
+
+Let $Z\sim\mathcal N(0,1)$ with density $\varphi(z) = e^{-z^2/2}/\sqrt{2\pi}$. Using $\varphi'(z) = -z\varphi(z)$:
+\begin{itemize}
+  \item $\E|Z| = 2\int_0^\infty z\,\varphi(z)\,\dd z = 2\big[-\varphi(z)\big]_0^\infty = 2\varphi(0) = \sqrt{2/\pi}$.
+  \item Integrating by parts, $\E[Z^{n+2}] = \int z^{n+1}\cdot z\varphi(z)\,\dd z = (n+1)\,\E[Z^n]$. Hence $\E[Z^2] = 1$, $\E[Z^4] = 3$, and $\operatorname{Var}(Z^2) = 3 - 1 = 2$.
+  \item $\E[e^{aZ}] = \int e^{az - z^2/2}\,\dd z/\sqrt{2\pi} = e^{a^2/2}$, by completing the square.
+\end{itemize}
+
+\section{The Black--Scholes equation}\label{app:pde}
+
+All partial derivatives of $C$ follow from one identity. Since $d_1 - d_2 = \sigma\sqrt\tau$ and $d_1 + d_2 = 2\big(\ln(S/K) + r\tau\big)/(\sigma\sqrt\tau)$,
+\[
+  \frac{\varphi(d_2)}{\varphi(d_1)} = \exp\!\Big(\frac{d_1^2 - d_2^2}{2}\Big) = \exp\!\big(\ln(S/K) + r\tau\big) = \frac{S e^{r\tau}}{K},
+  \qquad\text{that is,}\qquad S\varphi(d_1) = K e^{-r\tau}\varphi(d_2).
+\]
+\emph{Delta and gamma.} Since $\partial_S d_1 = \partial_S d_2 = 1/(S\sigma\sqrt\tau)$, differentiating $C$ gives $\Phi(d_1) + \big(S\varphi(d_1) - Ke^{-r\tau}\varphi(d_2)\big)\partial_S d_1 = \Phi(d_1)$, by the identity. Differentiating once more, $\Gamma = \varphi(d_1)/(S\sigma\sqrt\tau)$.
+
+\emph{Vega.} Similarly, $\partial_\sigma C = S\varphi(d_1)\,\partial_\sigma(d_1 - d_2) = S\varphi(d_1)\sqrt\tau$.
+
+\emph{Time derivative.} Time enters through $\tau = T-t$, so $\partial_t = -\partial_\tau$. Using the identity and $\partial_\tau(d_1 - d_2) = \sigma/(2\sqrt\tau)$,
+\[
+  \partial_t C = -\frac{\sigma S\varphi(d_1)}{2\sqrt\tau} - rKe^{-r\tau}\Phi(d_2).
+\]
+\emph{Conclusion.} Substituting, $\tfrac12\sigma^2S^2\Gamma = \sigma S\varphi(d_1)/(2\sqrt\tau)$ cancels the first term of $\partial_t C$, and $rS\Delta - rC = rKe^{-r\tau}\Phi(d_2)$ cancels the second, which proves \eqref{eq:bspde}.
 
 \begin{thebibliography}{9}
 \small
@@ -217,6 +279,9 @@ N.~El Karoui, M.~Jeanblanc-Picqué and S.~E.~Shreve, \emph{Robustness of the Bla
 
 \bibitem{Leland1985}
 H.~E.~Leland, \emph{Option pricing and replication with transactions costs}, Journal of Finance 40 (1985), 1283--1301.
+
+\bibitem{SonerEtAl1995}
+H.~M.~Soner, S.~E.~Shreve and J.~Cvitanić, \emph{There is no nontrivial hedging portfolio for option pricing with transaction costs}, Annals of Applied Probability 5 (1995), 327--355.
 \end{thebibliography}
 
 \end{document}

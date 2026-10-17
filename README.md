@@ -3,10 +3,10 @@
 Monte Carlo study of what remains of Black–Scholes replication when a short call is hedged
 
 1. at finitely many dates,
-2. with proportional transaction costs, and
-3. with a volatility different from the one the market realises.
+2. with a volatility different from the one the stock actually exhibits, and
+3. with proportional transaction costs.
 
-For each case the leading-order behaviour of the hedger's P&L is derived with an Itô–Taylor argument and checked against simulation. The write-up is in [`paper/main.pdf`](paper/main.pdf).
+A single second-order Taylor expansion of the option price over one rebalancing period explains all three effects; each prediction is checked against simulation. The derivations are heuristic and use only Taylor expansions and Gaussian moments; rigorous continuous-time versions are cited. The write-up is in [`paper/main.pdf`](paper/main.pdf).
 
 ## Main results
 
@@ -14,15 +14,15 @@ For each case the leading-order behaviour of the hedger's P&L is derived with an
 
 ![Hedging error against N](figures/fig2_convergence.png)
 
-**Transaction costs.** Expected costs grow like $N^{1/2}$, so there is an optimal rebalancing frequency. Pricing and hedging with Leland's adjusted volatility removes almost all of the cost bias.
-
-![Leland correction](figures/fig4_leland.png)
-
 **Wrong volatility.** Hedging at the implied volatility $\Sigma$ while the stock realises $\sigma$ yields
 $\mathrm{P\&L} = \frac{\Sigma^2 - \sigma^2}{2}\int_0^T e^{r(T-t)}\,\Gamma_t S_t^2\,dt$,
 verified here path by path. Hedging at the realised volatility instead locks in a deterministic profit.
 
 ![Wrong volatility](figures/fig5_wrong_vol.png)
+
+**Transaction costs.** Expected costs grow like $N^{1/2}$, so there is an optimal rebalancing frequency. Leland's adjusted volatility, which is a deliberate volatility misspecification, removes almost all of the cost bias.
+
+![Leland correction](figures/fig4_leland.png)
 
 ## Repository layout
 
@@ -45,6 +45,7 @@ cd paper && latexmk -pdf main.tex
 
 ## References
 
+- H. M. Soner, S. E. Shreve and J. Cvitanić, *There is no nontrivial hedging portfolio for option pricing with transaction costs*, Annals of Applied Probability, 1995.
 - H. Leland, *Option pricing and replication with transactions costs*, Journal of Finance, 1985.
 - E. Derman and M. Kamal, *When you cannot hedge continuously: the corrections to Black–Scholes*, Risk, 1999.
 - N. El Karoui, M. Jeanblanc-Picqué and S. Shreve, *Robustness of the Black and Scholes formula*, Mathematical Finance, 1998.

@@ -59,7 +59,7 @@ def hedge_pnl(market, N, M=20_000, k=0.0, sigma_hedge=None, sigma_price=None,
 
 
 def gamma_pnl_prediction(market, S, sigma_implied):
-    """Continuous-time P&L of hedging at the implied volatility, evaluated on each path:
+    """Leading-order P&L of hedging at the implied volatility, evaluated on each path:
 
         0.5 * sum_i exp(r (T - t_i)) Gamma_i S_i^2 (sigma_implied^2 - sigma^2) dt,
 
