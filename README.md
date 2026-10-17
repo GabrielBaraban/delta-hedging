@@ -15,7 +15,7 @@ A single second-order Taylor expansion of the option price over one rebalancing 
 ![Hedging error against N](figures/fig2_convergence.png)
 
 **Wrong volatility.** Hedging at the implied volatility $\Sigma$ while the stock realises $\sigma$ yields
-$\mathrm{P\&L} = \frac{\Sigma^2 - \sigma^2}{2}\int_0^T e^{r(T-t)}\,\Gamma_t S_t^2\,dt$,
+P&L $= \frac{\Sigma^2 - \sigma^2}{2}\int_0^T e^{r(T-t)}\,\Gamma_t S_t^2\,dt$,
 verified here path by path. Hedging at the realised volatility instead locks in a deterministic profit.
 
 ![Wrong volatility](figures/fig5_wrong_vol.png)
