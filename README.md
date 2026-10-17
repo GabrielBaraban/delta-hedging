@@ -48,5 +48,3 @@ cd paper && latexmk -pdf main.tex
 - H. M. Soner, S. E. Shreve and J. Cvitanić, *There is no nontrivial hedging portfolio for option pricing with transaction costs*, Annals of Applied Probability, 1995.
 - H. Leland, *Option pricing and replication with transactions costs*, Journal of Finance, 1985.
 - E. Derman and M. Kamal, *When you cannot hedge continuously: the corrections to Black–Scholes*, Risk, 1999.
-- N. El Karoui, M. Jeanblanc-Picqué and S. Shreve, *Robustness of the Black and Scholes formula*, Mathematical Finance, 1998.
-- B. Bouchard and J.-F. Chassagneux, *Fundamentals and Advanced Techniques in Derivatives Hedging*, Springer, 2016.

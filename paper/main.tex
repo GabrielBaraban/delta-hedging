@@ -44,7 +44,7 @@ This note quantifies that residual in a controlled setting: the stock follows th
   \item What happens when the trader hedges with a volatility different from the one the stock exhibits? (Section~\ref{sec:wrongvol})
   \item How do proportional transaction costs change the picture, and can they be priced in? (Section~\ref{sec:costs})
 \end{enumerate}
-The answers are classical \cite{Leland1985,DermanKamal1999,ElKarouiEtAl1998,AhmadWilmott2005,BouchardChassagneux2016}. The aim is to show that one elementary computation, a second-order Taylor expansion over a single rebalancing period, explains all three, and to check each prediction numerically.
+The answers are classical \cite{Leland1985,DermanKamal1999}. The aim is to show that one elementary computation, a second-order Taylor expansion over a single rebalancing period, explains all three, and to check each prediction numerically.
 
 \paragraph{Level of rigour.} The derivations are heuristic: they use Taylor expansions, keep only leading-order terms, and rely on elementary properties of Gaussian random variables (collected in Appendix~\ref{app:gauss}). Rigorous versions of these results are formulated in continuous time and require stochastic calculus; references are given where relevant. The simulations, by contrast, involve no approximation other than the discreteness of the hedge.
 
@@ -149,7 +149,7 @@ The second part has exactly the structure of \eqref{eq:localerror2}: by the argu
 \begin{equation}\label{eq:gammapnl}
   \PnL = \frac{\Sigma^2 - \sigma^2}{2}\int_0^T e^{r(T-t)}\,\Gamma^\Sigma_t S_t^2\,\dd t .
 \end{equation}
-A rigorous continuous-time version of this formula is due to El Karoui, Jeanblanc-Picqué and Shreve \cite{ElKarouiEtAl1998}. Since $\Gamma > 0$, the seller makes money on \emph{every} path when the implied volatility exceeds the realised one. The amount, however, depends on the path: it is large when the stock stays close to the strike near maturity, where gamma is concentrated.
+A rigorous continuous-time version of this formula is available in the literature on robustness of the Black--Scholes formula. Since $\Gamma > 0$, the seller makes money on \emph{every} path when the implied volatility exceeds the realised one. The amount, however, depends on the path: it is large when the stock stays close to the strike near maturity, where gamma is concentrated.
 
 \paragraph{Hedging at the realised volatility.} Alternatively, the trader sells at $C^\Sigma$ but hedges with $\Delta^\sigma$. By Section~\ref{sec:discrete}, this hedge replicates a call priced at $C^\sigma$ as $N\to\infty$, so the trader keeps the price difference, compounded to maturity:
 \begin{equation}\label{eq:lockedin}
@@ -227,7 +227,7 @@ The derivation of \eqref{eq:leland} treats $k/(\sigma\sqrt{\Delta t})$ as a mode
 
 A single second-order Taylor expansion over one rebalancing period, equation \eqref{eq:split}, accounts for all three effects studied here. Its random part, of mean zero, gives a rebalancing error of order $N^{-1/2}$. Its systematic part gives the profit of hedging with a volatility different from the realised one, which is the gamma-weighted gap \eqref{eq:gammapnl}. Transaction costs add a loss of order $N^{1/2}$, which Leland's correction offsets by using that systematic part on purpose. In every case the simulations agree with the leading-order predictions.
 
-Two directions seem natural to pursue. First, the arguments here are heuristic and limited to leading order. Making them rigorous, and going beyond Leland's approximation, requires stochastic calculus: with transaction costs, exact pricing leads to nonlinear equations that can be formulated as backward stochastic differential equations (BSDEs) \cite{BouchardChassagneux2016}. Learning these tools, and solving such equations numerically to compare with Leland's formula, is the natural continuation of this work. Second, the hedging dates were fixed in advance; rebalancing only when the delta leaves a band around its target is a simple way to trade fewer shares for the same risk, and comparing it with calendar hedging would refine the trade-off of Figure~\ref{fig:costs}.
+Two directions seem natural to pursue. First, the arguments here are heuristic and limited to leading order. Making them rigorous, and going beyond Leland's approximation, requires stochastic calculus: with transaction costs, exact pricing leads to nonlinear equations that can be formulated as backward stochastic differential equations (BSDEs). Learning these tools, and solving such equations numerically to compare with Leland's formula, is the natural continuation of this work. Second, the hedging dates were fixed in advance; rebalancing only when the delta leaves a band around its target is a simple way to trade fewer shares for the same risk, and comparing it with calendar hedging would refine the trade-off of Figure~\ref{fig:costs}.
 
 \paragraph{Reproducibility.} Every figure and every number in this note is produced by a single script, \texttt{experiments/run\_experiments.py}, which writes the numbers into the \LaTeX\ source. The code, with unit tests, is available at \url{\repourl}.
 
@@ -261,20 +261,11 @@ All partial derivatives of $C$ follow from one identity. Since $d_1 - d_2 = \sig
 
 \begin{thebibliography}{9}
 \small
-\bibitem{AhmadWilmott2005}
-R.~Ahmad and P.~Wilmott, \emph{Which free lunch would you like today, sir? Delta hedging, volatility arbitrage and optimal portfolios}, Wilmott Magazine, November 2005, 64--79.
-
 \bibitem{BlackScholes1973}
 F.~Black and M.~Scholes, \emph{The pricing of options and corporate liabilities}, Journal of Political Economy 81 (1973), 637--654.
 
-\bibitem{BouchardChassagneux2016}
-B.~Bouchard and J.-F.~Chassagneux, \emph{Fundamentals and Advanced Techniques in Derivatives Hedging}, Universitext, Springer, 2016.
-
 \bibitem{DermanKamal1999}
 E.~Derman and M.~Kamal, \emph{When you cannot hedge continuously: the corrections to Black--Scholes}, Risk 12 (1999), 82--85.
-
-\bibitem{ElKarouiEtAl1998}
-N.~El Karoui, M.~Jeanblanc-Picqué and S.~E.~Shreve, \emph{Robustness of the Black and Scholes formula}, Mathematical Finance 8 (1998), 93--126.
 
 \bibitem{Leland1985}
 H.~E.~Leland, \emph{Option pricing and replication with transactions costs}, Journal of Finance 40 (1985), 1283--1301.
